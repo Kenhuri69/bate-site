@@ -5,117 +5,238 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>BATE — RPG Android (fan game)</title>
 <meta name="description" content="RPG Android fan-made basé sur The Beginning After The End de TurtleMe. Moteur Godot 4 + C#. Projet non-commercial.">
+<meta name="theme-color" content="#0e1116">
+<!-- Open Graph / réseaux -->
+<meta property="og:title" content="BATE — RPG Android fan-made">
+<meta property="og:description" content="Un RPG mobile inspiré de The Beginning After The End. Godot 4 + C#, 100 % hors-ligne.">
+<meta property="og:image" content="assets/keyart.jpg">
+<meta property="og:type" content="website">
+<link rel="preload" as="image" href="assets/keyart.jpg">
 <style>
   :root{
     --bg:#0e1116; --bg2:#161b22; --card:#1b222c; --line:#2a323d;
     --fg:#e8edf3; --muted:#9aa7b4; --accent:#e8b24a; --accent2:#c8892b;
-    --radius:14px;
+    --mana:#5ac8fa; --radius:14px;
+    --shadow:0 18px 48px rgba(0,0,0,.55);
   }
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
   body{
     margin:0; background:var(--bg); color:var(--fg);
     font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    line-height:1.6; -webkit-font-smoothing:antialiased;
+    line-height:1.6; -webkit-font-smoothing:antialiased; overflow-x:hidden;
   }
   a{color:var(--accent); text-decoration:none}
   a:hover{text-decoration:underline}
-  .wrap{max-width:960px; margin:0 auto; padding:0 20px}
+  .wrap{max-width:1040px; margin:0 auto; padding:0 20px}
+
+  /* ============ HÉRO ============ */
   header.hero{
-    text-align:center; padding:72px 20px 56px;
+    position:relative; text-align:center; padding:120px 20px 96px;
+    border-bottom:1px solid var(--line); overflow:hidden; isolation:isolate;
+  }
+  /* fond key art avec parallax léger */
+  .hero-bg{
+    position:absolute; inset:-8% -8% -8% -8%; z-index:-3;
+    background:url("assets/keyart.jpg") center 18% / cover no-repeat;
+    transform:scale(1.06); will-change:transform;
+    filter:saturate(1.05);
+  }
+  .hero-veil{
+    position:absolute; inset:0; z-index:-2;
     background:
-      radial-gradient(1200px 400px at 50% -10%, rgba(232,178,74,.14), transparent 60%),
-      linear-gradient(180deg,var(--bg2),var(--bg));
-    border-bottom:1px solid var(--line);
+      radial-gradient(1200px 520px at 50% -8%, rgba(232,178,74,.22), transparent 62%),
+      radial-gradient(900px 500px at 50% 120%, rgba(90,200,250,.12), transparent 60%),
+      linear-gradient(180deg, rgba(14,17,22,.55) 0%, rgba(14,17,22,.72) 42%, var(--bg) 100%);
+  }
+  /* couche de particules de mana */
+  .particles{position:absolute; inset:0; z-index:-1; pointer-events:none; overflow:hidden}
+  .particles i{
+    position:absolute; bottom:-12px; width:6px; height:6px; border-radius:50%;
+    background:radial-gradient(circle at 30% 30%, #cfeeffcc, var(--mana));
+    box-shadow:0 0 8px 2px rgba(90,200,250,.45);
+    opacity:0; animation:rise linear infinite;
+  }
+  @keyframes rise{
+    0%{transform:translateY(0) scale(.6); opacity:0}
+    12%{opacity:.9}
+    88%{opacity:.7}
+    100%{transform:translateY(-84vh) scale(1.1); opacity:0}
   }
   .badge{
     display:inline-block; font-size:.8rem; letter-spacing:.08em; text-transform:uppercase;
     color:var(--accent); border:1px solid var(--accent2); border-radius:999px;
-    padding:4px 12px; margin-bottom:20px;
+    padding:5px 14px; margin-bottom:22px; background:rgba(14,17,22,.45);
+    backdrop-filter:blur(4px);
   }
-  h1{font-size:clamp(2.2rem,6vw,3.4rem); margin:.1em 0; letter-spacing:-.02em}
-  h1 .sub{display:block; font-size:1rem; font-weight:500; color:var(--muted); letter-spacing:.02em; margin-top:.5em}
-  .tag{color:var(--muted); max-width:620px; margin:14px auto 0}
-  .cta{display:flex; gap:14px; justify-content:center; flex-wrap:wrap; margin-top:34px}
+  h1{font-size:clamp(2.4rem,7vw,4rem); margin:.1em 0; letter-spacing:-.02em; line-height:1.05;
+    text-shadow:0 3px 30px rgba(0,0,0,.6)}
+  h1 .glow{
+    background:linear-gradient(90deg,#fff,var(--accent) 45%,#fff);
+    background-size:220% 100%;
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    animation:shimmer 6s ease-in-out infinite;
+  }
+  @keyframes shimmer{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+  h1 .sub{display:block; font-size:1rem; font-weight:500; color:#d6dee7; letter-spacing:.02em; margin-top:.6em; text-shadow:0 2px 12px rgba(0,0,0,.7)}
+  .tag{color:#cbd5df; max-width:640px; margin:16px auto 0; text-shadow:0 2px 10px rgba(0,0,0,.6)}
+  .cta{display:flex; gap:14px; justify-content:center; flex-wrap:wrap; margin-top:36px}
   .btn{
-    display:inline-flex; align-items:center; gap:10px; font-weight:600; font-size:1.02rem;
-    padding:13px 24px; border-radius:var(--radius); border:1px solid transparent; cursor:pointer;
+    position:relative; display:inline-flex; align-items:center; gap:10px; font-weight:600; font-size:1.02rem;
+    padding:14px 26px; border-radius:var(--radius); border:1px solid transparent; cursor:pointer;
+    transition:transform .18s ease, box-shadow .18s ease, filter .18s ease, border-color .18s ease;
+    min-height:48px;
   }
-  .btn-primary{background:linear-gradient(180deg,var(--accent),var(--accent2)); color:#1a1205}
-  .btn-primary:hover{filter:brightness(1.06); text-decoration:none}
-  .btn-ghost{background:transparent; border-color:var(--line); color:var(--fg)}
-  .btn-ghost:hover{border-color:var(--accent); text-decoration:none}
-  .meta{margin-top:16px; font-size:.9rem; color:var(--muted)}
-  .meta code{background:var(--bg2); padding:2px 7px; border-radius:6px; border:1px solid var(--line)}
-  section{padding:52px 0; border-bottom:1px solid var(--line)}
-  h2{font-size:1.5rem; margin:0 0 22px; letter-spacing:-.01em}
-  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:16px}
-  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:20px}
-  .card h3{margin:.1em 0 .4em; font-size:1.05rem}
+  .btn-primary{background:linear-gradient(180deg,var(--accent),var(--accent2)); color:#1a1205;
+    box-shadow:0 8px 24px rgba(232,178,74,.28)}
+  .btn-primary:hover{transform:translateY(-2px); filter:brightness(1.07); text-decoration:none;
+    box-shadow:0 12px 34px rgba(232,178,74,.42)}
+  .btn-ghost{background:rgba(20,26,34,.55); border-color:var(--line); color:var(--fg); backdrop-filter:blur(4px)}
+  .btn-ghost:hover{transform:translateY(-2px); border-color:var(--accent); text-decoration:none}
+  .meta{margin-top:18px; font-size:.9rem; color:#c0ccd7; text-shadow:0 1px 8px rgba(0,0,0,.7)}
+  .meta code{background:rgba(22,27,34,.7); padding:2px 7px; border-radius:6px; border:1px solid var(--line)}
+  .scroll-hint{position:absolute; left:50%; bottom:18px; transform:translateX(-50%); z-index:-1;
+    width:22px; height:34px; border:2px solid rgba(232,178,74,.5); border-radius:12px}
+  .scroll-hint::before{content:""; position:absolute; left:50%; top:6px; width:3px; height:7px; border-radius:2px;
+    background:var(--accent); transform:translateX(-50%); animation:dot 1.8s ease-in-out infinite}
+  @keyframes dot{0%,100%{opacity:.3; top:6px}50%{opacity:1; top:14px}}
+
+  /* ============ SECTIONS ============ */
+  section{padding:64px 0; border-bottom:1px solid var(--line)}
+  h2{font-size:clamp(1.5rem,3.4vw,2rem); margin:0 0 8px; letter-spacing:-.01em}
+  h2 .kicker,.kicker{display:block; font-size:.78rem; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--accent); margin-bottom:8px}
+  .lead{color:var(--muted); max-width:640px; margin:0 0 28px}
+
+  /* révélation au scroll */
+  .reveal{opacity:0; transform:translateY(22px); transition:opacity .6s ease, transform .6s ease}
+  .reveal.in{opacity:1; transform:none}
+
+  /* cartes de features */
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px}
+  .card{position:relative; background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:22px; transition:transform .2s ease, border-color .2s ease, box-shadow .2s ease; overflow:hidden}
+  .card::after{content:""; position:absolute; inset:0; border-radius:var(--radius); pointer-events:none;
+    background:radial-gradient(320px 160px at var(--mx,50%) 0%, rgba(232,178,74,.10), transparent 70%); opacity:0; transition:opacity .25s ease}
+  .card:hover{transform:translateY(-4px); border-color:var(--accent2); box-shadow:var(--shadow)}
+  .card:hover::after{opacity:1}
+  .card .ico{font-size:1.5rem; display:inline-block; transition:transform .25s ease}
+  .card:hover .ico{transform:scale(1.15) rotate(-4deg)}
+  .card h3{margin:.35em 0 .4em; font-size:1.06rem}
   .card p{margin:0; color:var(--muted); font-size:.95rem}
+
+  /* ============ PERSONNAGES ============ */
+  .roster{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:16px}
+  .hero-card{
+    position:relative; border-radius:var(--radius); overflow:hidden; cursor:pointer;
+    aspect-ratio:3/4; background:linear-gradient(180deg,#20293580,#12171e);
+    border:1px solid var(--line); transition:transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+  }
+  .hero-card img{
+    position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:top center;
+    transition:transform .4s ease, filter .4s ease; filter:saturate(.92) contrast(1.02);
+  }
+  .hero-card .rim{position:absolute; inset:0; border-radius:var(--radius); pointer-events:none;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.04); transition:box-shadow .3s ease}
+  .hero-card .label{
+    position:absolute; left:0; right:0; bottom:0; padding:16px 14px 12px; z-index:2;
+    background:linear-gradient(180deg,transparent, rgba(9,12,16,.86) 62%);
+    transform:translateY(6px); transition:transform .3s ease;
+  }
+  .hero-card .label b{display:block; font-size:1.02rem; letter-spacing:.01em}
+  .hero-card .label span{display:block; font-size:.78rem; color:var(--accent);
+    opacity:0; max-height:0; overflow:hidden; transition:opacity .3s ease, max-height .3s ease}
+  .hero-card:hover, .hero-card:focus-visible{
+    transform:translateY(-6px); border-color:var(--accent);
+    box-shadow:0 20px 46px rgba(0,0,0,.6), 0 0 26px rgba(232,178,74,.22); outline:none;
+  }
+  .hero-card:hover img, .hero-card:focus-visible img{transform:scale(1.07); filter:saturate(1.08) contrast(1.05)}
+  .hero-card:hover .rim, .hero-card:focus-visible .rim{box-shadow:inset 0 0 0 1px rgba(232,178,74,.5), inset 0 -70px 60px -40px rgba(232,178,74,.28)}
+  .hero-card:hover .label, .hero-card:focus-visible .label{transform:none}
+  .hero-card:hover .label span, .hero-card:focus-visible .label span{opacity:1; max-height:2.4em}
+  .group-title{font-size:.82rem; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin:26px 0 12px}
+
+  /* ============ INSTALLATION ============ */
   ol.steps{counter-reset:s; list-style:none; padding:0; margin:0; display:grid; gap:12px}
-  ol.steps li{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:14px 16px 14px 54px; position:relative}
+  ol.steps li{background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:14px 16px 14px 56px; position:relative; transition:border-color .2s ease, transform .2s ease}
+  ol.steps li:hover{border-color:var(--accent2); transform:translateX(3px)}
   ol.steps li::before{
     counter-increment:s; content:counter(s);
     position:absolute; left:14px; top:50%; transform:translateY(-50%);
-    width:26px; height:26px; border-radius:50%; background:var(--accent); color:#1a1205;
+    width:28px; height:28px; border-radius:50%; background:var(--accent); color:#1a1205;
     font-weight:700; font-size:.85rem; display:flex; align-items:center; justify-content:center;
   }
-  .shot{background:var(--bg2); border:1px dashed var(--line); border-radius:var(--radius);
-    aspect-ratio:9/16; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:.9rem; text-align:center; padding:16px}
-  .shots{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px}
-  footer{padding:40px 20px 60px; text-align:center; color:var(--muted); font-size:.9rem}
+
+  /* ============ PIED ============ */
+  footer{padding:44px 20px 64px; text-align:center; color:var(--muted); font-size:.9rem}
   footer p{margin:.4em 0}
-  .disclaimer{max-width:640px; margin:0 auto 14px; font-size:.85rem}
+  .disclaimer{max-width:660px; margin:0 auto 14px; font-size:.85rem}
+
+  /* accessibilité : respecte la préférence de mouvement réduit */
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none !important; transition:none !important; scroll-behavior:auto !important}
+    .reveal{opacity:1; transform:none}
+    .hero-bg{transform:none}
+  }
 </style>
 </head>
 <body>
 
 <header class="hero">
+  <div class="hero-bg" id="heroBg"></div>
+  <div class="hero-veil"></div>
+  <div class="particles" id="particles" aria-hidden="true"></div>
   <div class="wrap">
     <span class="badge" id="version-badge">Fan game · Android</span>
-    <h1>BATE<span class="sub">RPG Android fan-made — <em>The Beginning After The End</em></span></h1>
+    <h1><span class="glow">BATE</span><span class="sub">RPG Android fan-made — <em>The Beginning After The End</em></span></h1>
     <p class="tag">Un RPG mobile inspiré de l'œuvre de TurtleMe. Moteur Godot&nbsp;4 + C#, 100&nbsp;% hors-ligne. Projet fan non-commercial.</p>
     <div class="cta">
       <a class="btn btn-primary" href="https://github.com/Kenhuri69/bate-site/releases/latest/download/BATE.apk" id="dl">⬇ Télécharger l'APK</a>
-      <a class="btn btn-ghost" href="https://github.com/Kenhuri69/bate-site/releases">Toutes les versions</a>
+      <a class="btn btn-ghost" href="#personnages">Voir les personnages</a>
     </div>
-    <p class="meta" id="rel-meta">Android 5.0+ · <code>arm64-v8a</code> · ~39&nbsp;Mo</p>
+    <p class="meta" id="rel-meta">Android 5.0+ · <code>arm64-v8a</code> · APK maigre ~109&nbsp;Mo + pack ~300&nbsp;Mo</p>
   </div>
+  <div class="scroll-hint" aria-hidden="true"></div>
 </header>
 
-<section>
-  <div class="wrap">
-    <h2>Le jeu</h2>
+<section id="jeu">
+  <div class="wrap reveal">
+    <span class="kicker">Le jeu</span>
+    <h2>Un RPG fidèle à l'univers</h2>
+    <p class="lead">Combat au tour par tour, progression du noyau de mana, chapitres et dialogues — le tout jouable hors-ligne.</p>
     <div class="grid">
-      <div class="card"><h3>⚔️ Combat au tour par tour</h3><p>Statistiques physiques/mana, compétences et défense, façon RPG classique.</p></div>
-      <div class="card"><h3>🔮 Noyau de mana</h3><p>Progression de la pureté du noyau (Noir → Rouge → … → au-delà du Blanc) et rotation de mana.</p></div>
-      <div class="card"><h3>📖 Chapitres &amp; quêtes</h3><p>Trame des chapitres&nbsp;1 à 10 avec quêtes et dialogues (Dialogic&nbsp;2).</p></div>
-      <div class="card"><h3>💾 Sauvegarde locale</h3><p>Tout reste sur l'appareil (FileAccess + JSON). Aucune connexion requise.</p></div>
+      <div class="card"><span class="ico">⚔️</span><h3>Combat au tour par tour</h3><p>Statistiques physiques/mana, compétences et défense, façon RPG classique.</p></div>
+      <div class="card"><span class="ico">🔮</span><h3>Noyau de mana</h3><p>Progression de la pureté du noyau (Noir → Rouge → … → au-delà du Blanc) et rotation de mana.</p></div>
+      <div class="card"><span class="ico">📖</span><h3>Chapitres &amp; quêtes</h3><p>Trame des chapitres&nbsp;1 à 10 avec quêtes et dialogues (Dialogic&nbsp;2).</p></div>
+      <div class="card"><span class="ico">💾</span><h3>Sauvegarde locale</h3><p>Tout reste sur l'appareil (FileAccess + JSON). Aucune connexion requise.</p></div>
     </div>
   </div>
 </section>
 
-<section>
-  <div class="wrap">
-    <h2>Installation</h2>
+<section id="personnages">
+  <div class="wrap reveal">
+    <span class="kicker">Personnages</span>
+    <h2>Un casting tiré des scans</h2>
+    <p class="lead">Sprites extraits puis reconstruits pour le jeu. Survole un portrait pour le découvrir.</p>
+
+    <div class="group-title">Famille Leywin</div>
+    <div class="roster" id="roster-leywin"></div>
+
+    <div class="group-title">Les Twin Horns</div>
+    <div class="roster" id="roster-twinhorns"></div>
+  </div>
+</section>
+
+<section id="installation">
+  <div class="wrap reveal">
+    <span class="kicker">Installation</span>
+    <h2>En quatre étapes</h2>
     <ol class="steps">
-      <li>Télécharge <strong>BATE.apk</strong> (bouton ci-dessus) sur ton appareil Android arm64.</li>
+      <li>Télécharge <strong>BATE.apk</strong> (bouton en haut) sur ton appareil Android arm64.</li>
       <li>Autorise l'installation depuis des <em>sources inconnues</em> (Paramètres → Sécurité) pour ton navigateur/gestionnaire de fichiers.</li>
       <li>Ouvre le fichier téléchargé et installe.</li>
-      <li>Lance <strong>BATE</strong> depuis le tiroir d'applications.</li>
+      <li>Au 1<sup>er</sup> lancement, le jeu télécharge automatiquement le pack de sprites, puis lance <strong>BATE</strong>.</li>
     </ol>
-  </div>
-</section>
-
-<section>
-  <div class="wrap">
-    <h2>Aperçus</h2>
-    <div class="shots">
-      <div class="shot">Captures d'écran<br>à venir</div>
-      <div class="shot">Captures d'écran<br>à venir</div>
-      <div class="shot">Captures d'écran<br>à venir</div>
-    </div>
   </div>
 </section>
 
@@ -126,25 +247,99 @@
       <em>The Beginning After The End</em> sont © TurtleMe. Ce projet n'est ni affilié à,
       ni approuvé par les ayants droit. Le code source est sous licence MIT.
     </p>
-    <p>Fait avec Godot&nbsp;4</p>
+    <p>Fait avec Godot&nbsp;4 · <a href="https://github.com/Kenhuri69/bate-site/releases">Toutes les versions</a></p>
   </div>
 </footer>
 
 <script>
-  // Récupère la dernière release pour afficher la version (dégradation propre si indisponible)
+  // ---- Casting (portraits fournis avec la vitrine) ----
+  var LEYWIN = [
+    {n:"Arthur",   f:"arthur",   r:"L'âme réincarnée"},
+    {n:"Alice",    f:"alice",    r:"Mère d'Arthur"},
+    {n:"Reynolds", f:"reynolds", r:"Père d'Arthur"}
+  ];
+  var TWINHORNS = [
+    {n:"Jasmine", f:"jasmine", r:"Épéiste de feu"},
+    {n:"Adam",    f:"adam",    r:"Mercenaire"},
+    {n:"Angela",  f:"angela",  r:"Mercenaire"},
+    {n:"Helen",   f:"helen",   r:"Mercenaire"},
+    {n:"Durden",  f:"durden",  r:"Mercenaire"}
+  ];
+  function card(c){
+    return '<figure class="hero-card" tabindex="0" aria-label="'+c.n+' — '+c.r+'">'
+      + '<img loading="lazy" src="assets/heroes/'+c.f+'.png" alt="Portrait de '+c.n+'">'
+      + '<span class="rim"></span>'
+      + '<figcaption class="label"><b>'+c.n+'</b><span>'+c.r+'</span></figcaption>'
+      + '</figure>';
+  }
+  document.getElementById("roster-leywin").innerHTML   = LEYWIN.map(card).join("");
+  document.getElementById("roster-twinhorns").innerHTML = TWINHORNS.map(card).join("");
+
+  // ---- Révélation au scroll ----
+  (function(){
+    if(!("IntersectionObserver" in window)){ document.querySelectorAll(".reveal").forEach(function(e){e.classList.add("in")}); return; }
+    var io = new IntersectionObserver(function(ents){
+      ents.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target); } });
+    }, {threshold:.14});
+    document.querySelectorAll(".reveal").forEach(function(e){ io.observe(e); });
+  })();
+
+  // ---- Particules de mana ----
+  (function(){
+    var host = document.getElementById("particles");
+    if(!host || matchMedia("(prefers-reduced-motion:reduce)").matches) return;
+    var N = 18;
+    for(var i=0;i<N;i++){
+      var p = document.createElement("i");
+      var left = Math.random()*100;
+      var dur = 9 + Math.random()*10;
+      var delay = -Math.random()*dur;
+      var scale = .5 + Math.random()*1.2;
+      p.style.left = left+"%";
+      p.style.animationDuration = dur+"s";
+      p.style.animationDelay = delay+"s";
+      p.style.transform = "scale("+scale+")";
+      host.appendChild(p);
+    }
+  })();
+
+  // ---- Parallax du key art + lueur des cartes au survol ----
+  (function(){
+    var bg = document.getElementById("heroBg");
+    var reduce = matchMedia("(prefers-reduced-motion:reduce)").matches;
+    if(bg && !reduce){
+      window.addEventListener("scroll", function(){
+        var y = window.scrollY;
+        if(y < 900) bg.style.transform = "scale(1.06) translateY("+(y*0.18)+"px)";
+      }, {passive:true});
+      window.addEventListener("pointermove", function(e){
+        var dx = (e.clientX/window.innerWidth - .5)*10;
+        var dy = (e.clientY/window.innerHeight - .5)*8;
+        bg.style.backgroundPosition = "calc(50% + "+dx+"px) calc(18% + "+dy+"px)";
+      });
+    }
+    // suit le curseur pour la lueur radiale des cartes
+    document.querySelectorAll(".card").forEach(function(c){
+      c.addEventListener("pointermove", function(e){
+        var r = c.getBoundingClientRect();
+        c.style.setProperty("--mx", (e.clientX - r.left)+"px");
+      });
+    });
+  })();
+
+  // ---- Version + lien de téléchargement (dégradation propre) ----
   (function(){
     fetch("https://api.github.com/repos/Kenhuri69/bate-site/releases/latest", {headers:{Accept:"application/vnd.github+json"}})
       .then(function(r){ return r.ok ? r.json() : null; })
       .then(function(rel){
         if(!rel || !rel.tag_name) return;
-        var badge = document.getElementById("version-badge");
-        badge.textContent = "Version " + rel.tag_name + " · Android";
+        document.getElementById("version-badge").textContent = "Version " + rel.tag_name + " · Android";
         var apk = (rel.assets||[]).find(function(a){ return /\.apk$/i.test(a.name); });
         if(apk){ document.getElementById("dl").href = apk.browser_download_url; }
         var d = rel.published_at ? new Date(rel.published_at).toLocaleDateString("fr-FR") : null;
         if(d){ document.getElementById("rel-meta").innerHTML += " · publié le " + d; }
       })
-      .catch(function(){ /* pas de release publiée : on garde le lien /releases/latest */ });
+      .catch(function(){});
   })();
 </script>
 </body>
