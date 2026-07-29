@@ -1,0 +1,145 @@
+name: BATE - Publier une release (APK + pack)
+
+# COPIE DE RÉFÉRENCE, versionnée dans le dépôt du jeu. Le fichier réellement
+# exécuté est `.github/workflows/publish-release.yml` du dépôt PUBLIC
+# `Kenhuri69/bate-site`. Garder les deux identiques (tools/publish-release.sh
+# le vérifie avant de déclencher le workflow).
+#
+# POURQUOI ce workflow existe : normalement, `tools/release.sh` publie la
+# Release depuis la machine de l'auteur avec son `gh`. Quand ce n'est pas
+# possible (session Claude Code : aucun jeton GitHub d'écriture, seul `git push`
+# est authentifié par le proxy), la publication passe par ici. Les minutes
+# Actions du dépôt PUBLIC sont gratuites et illimitées — contrairement au dépôt
+# privé `bate`, dont l'épuisement des minutes est précisément ce qui a rendu la
+# CI indisponible.
+#
+# FLUX : tools/publish-release.sh (dépôt du jeu) découpe l'APK et le pack en
+# tranches < 100 Mo (limite GitHub par fichier en push git), les pousse sur une
+# branche technique orpheline de ce dépôt, puis déclenche ce workflow. Ici on
+# recompose les binaires, on vérifie les empreintes SHA-256, on publie la
+# Release et on met à jour manifest.json (lu au boot par le jeu).
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version à publier (vX.Y.Z)"
+        required: true
+        type: string
+      staging_branch:
+        description: "Branche technique portant les tranches des binaires"
+        required: false
+        default: "release-staging"
+        type: string
+      dry_run:
+        description: "Vérifier seulement (recomposition + empreintes), ne rien publier"
+        required: false
+        default: false
+        type: boolean
+      update_manifest:
+        description: "Mettre à jour manifest.json (pack téléchargé par le jeu au boot)"
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Publier ${{ inputs.version }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout de la vitrine (main, porte manifest.json)
+        uses: actions/checkout@v4
+
+      - name: Checkout de la branche technique (tranches des binaires)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.staging_branch }}
+          path: staging
+
+      # Les tranches sont produites par `split -d` : l'ordre lexicographique de
+      # `*.part-*` est donc l'ordre de concaténation. Les empreintes SHA-256 sont
+      # celles des binaires ENTIERS, mesurées à la sortie du build : si la
+      # recomposition ou le transfert a abîmé quoi que ce soit, on s'arrête ici.
+      - name: Recomposer les binaires et vérifier les empreintes
+        run: |
+          set -euo pipefail
+          cd staging
+          for f in release_meta.json checksums.txt; do
+            [ -f "$f" ] || { echo "::error::$f absent de la branche technique"; exit 1; }
+          done
+          META_VERSION="$(python3 -c 'import json;print(json.load(open("release_meta.json"))["version"])')"
+          if [ "$META_VERSION" != "${{ inputs.version }}" ]; then
+            echo "::error::version demandée (${{ inputs.version }}) ≠ version des tranches ($META_VERSION)"
+            exit 1
+          fi
+          mkdir -p "$GITHUB_WORKSPACE/dist"
+          cat BATE.apk.part-*   > "$GITHUB_WORKSPACE/dist/BATE.apk"
+          cat assets.pck.part-* > "$GITHUB_WORKSPACE/dist/assets.pck"
+          cp checksums.txt release_meta.json "$GITHUB_WORKSPACE/dist/"
+          cd "$GITHUB_WORKSPACE/dist"
+          sha256sum -c checksums.txt
+          ls -lh BATE.apk assets.pck
+          cat release_meta.json
+
+      - name: Publier la Release
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION="${{ inputs.version }}"
+          NOTES_FILE="staging/release_notes.md"
+          if [ ! -f "$NOTES_FILE" ]; then
+            NOTES_FILE="$(mktemp)"
+            printf 'APK maigre + pack de ressources — %s.\n\nProjet fan non-commercial — © TurtleMe (The Beginning After The End).\n' \
+              "$VERSION" > "$NOTES_FILE"
+          fi
+          if gh release view "$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$VERSION" --repo "$GITHUB_REPOSITORY" --clobber \
+              "dist/BATE.apk#BATE.apk" "dist/assets.pck#assets.pck"
+          else
+            gh release create "$VERSION" --repo "$GITHUB_REPOSITORY" \
+              --title "BATE ${VERSION#v}" --notes-file "$NOTES_FILE" \
+              "dist/BATE.apk#BATE.apk" "dist/assets.pck#assets.pck"
+          fi
+          gh release view "$VERSION" --repo "$GITHUB_REPOSITORY" --json assets \
+            --jq '.assets[] | "\(.name) \(.size) octets"'
+
+      # manifest.json est lu au boot par le jeu (Boot.gd, MANIFEST_URL sur
+      # Pages) : il décide quel pack télécharger. Sans cette mise à jour, la
+      # Release existe mais aucun appareil ne voit la nouvelle version.
+      - name: Mettre à jour manifest.json (Pages)
+        if: ${{ !inputs.dry_run && inputs.update_manifest }}
+        run: |
+          set -euo pipefail
+          VERSION="${{ inputs.version }}"
+          PACK_SHA="$(python3 -c 'import json;print(json.load(open("dist/release_meta.json"))["pack_sha256"])')"
+          cat > manifest.json <<JSON
+          {
+            "version": "$VERSION",
+            "url": "https://github.com/$GITHUB_REPOSITORY/releases/download/$VERSION/assets.pck",
+            "sha256": "$PACK_SHA"
+          }
+          JSON
+          cat manifest.json
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add manifest.json
+          git diff --cached --quiet && { echo "manifest déjà à jour"; exit 0; }
+          git commit -m "manifest: pack $VERSION"
+          git push origin HEAD:${{ github.event.repository.default_branch }}
+
+      # La branche technique n'a plus de raison d'être une fois les binaires
+      # publiés comme assets de la Release : on la supprime pour ne pas laisser
+      # ~350 Mo de tranches référencées dans l'historique du dépôt public.
+      - name: Supprimer la branche technique
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/${{ inputs.staging_branch }}" \
+            && echo "branche ${{ inputs.staging_branch }} supprimée" \
+            || echo "suppression de la branche ${{ inputs.staging_branch }} impossible (déjà absente ?)"
