@@ -132,6 +132,16 @@ jobs:
           git commit -m "manifest: pack $VERSION"
           git push origin HEAD:${{ github.event.repository.default_branch }}
 
+      # Un push fait avec GITHUB_TOKEN ne déclenche AUCUN autre workflow (garde-fou
+      # anti-récursion de GitHub) : sans ce déclenchement explicite, `pages.yml` ne
+      # repart pas et le site continue de servir l'ancien manifest.json — la Release
+      # existe, mais aucun appareil ne voit la nouvelle version.
+      - name: Redéployer Pages (le push par GITHUB_TOKEN ne le déclenche pas)
+        if: ${{ !inputs.dry_run && inputs.update_manifest }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref "${{ github.event.repository.default_branch }}"
+
       # La branche technique n'a plus de raison d'être une fois les binaires
       # publiés comme assets de la Release : on la supprime pour ne pas laisser
       # ~350 Mo de tranches référencées dans l'historique du dépôt public.
