@@ -44,6 +44,12 @@ on:
 
 permissions:
   contents: write
+  # `actions: write` : sans elle, le step "Redéployer Pages" (gh workflow run
+  # pages.yml) échoue en HTTP 403 "Resource not accessible by integration" —
+  # le GITHUB_TOKEN par défaut n'a pas le droit de déclencher un AUTRE workflow
+  # du même dépôt. Mesuré sur les runs 30702021386, 30703408338, 30827146386 :
+  # la Release et manifest.json se publient bien, seul ce dernier step échoue.
+  actions: write
 
 jobs:
   publish:
