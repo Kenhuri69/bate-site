@@ -84,10 +84,20 @@ jobs:
           mkdir -p "$GITHUB_WORKSPACE/dist"
           cat BATE.apk.part-*   > "$GITHUB_WORKSPACE/dist/BATE.apk"
           cat assets.pck.part-* > "$GITHUB_WORKSPACE/dist/assets.pck"
+          # Pack de voix, séparé depuis v0.1.37 et FACULTATIF : une publication faite depuis une
+          # machine sans voix installées n'en porte pas, et cela ne doit pas faire échouer la
+          # livraison (dialogues muets, jeu complet par ailleurs).
+          if ls voices.pck.part-* >/dev/null 2>&1; then
+            cat voices.pck.part-* > "$GITHUB_WORKSPACE/dist/voices.pck"
+          fi
+          # Pack MAIGRE (sans voix), lu par les APK >= v0.1.37 via le bloc `lite` du manifeste.
+          if ls assets-lite.pck.part-* >/dev/null 2>&1; then
+            cat assets-lite.pck.part-* > "$GITHUB_WORKSPACE/dist/assets-lite.pck"
+          fi
           cp checksums.txt release_meta.json "$GITHUB_WORKSPACE/dist/"
           cd "$GITHUB_WORKSPACE/dist"
           sha256sum -c checksums.txt
-          ls -lh BATE.apk assets.pck
+          ls -lh BATE.apk assets.pck voices.pck 2>/dev/null || ls -lh BATE.apk assets.pck
           cat release_meta.json
 
       - name: Publier la Release
@@ -103,13 +113,15 @@ jobs:
             printf 'APK maigre + pack de ressources — %s.\n\nProjet fan non-commercial — © TurtleMe (The Beginning After The End).\n' \
               "$VERSION" > "$NOTES_FILE"
           fi
+          BINAIRES=("dist/BATE.apk#BATE.apk" "dist/assets.pck#assets.pck")
+          [ -f dist/voices.pck ] && BINAIRES+=("dist/voices.pck#voices.pck")
+          [ -f dist/assets-lite.pck ] && BINAIRES+=("dist/assets-lite.pck#assets-lite.pck")
           if gh release view "$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$VERSION" --repo "$GITHUB_REPOSITORY" --clobber \
-              "dist/BATE.apk#BATE.apk" "dist/assets.pck#assets.pck"
+            gh release upload "$VERSION" --repo "$GITHUB_REPOSITORY" --clobber "${BINAIRES[@]}"
           else
             gh release create "$VERSION" --repo "$GITHUB_REPOSITORY" \
               --title "BATE ${VERSION#v}" --notes-file "$NOTES_FILE" \
-              "dist/BATE.apk#BATE.apk" "dist/assets.pck#assets.pck"
+              "${BINAIRES[@]}"
           fi
           gh release view "$VERSION" --repo "$GITHUB_REPOSITORY" --json assets \
             --jq '.assets[] | "\(.name) \(.size) octets"'
@@ -123,13 +135,22 @@ jobs:
           set -euo pipefail
           VERSION="${{ inputs.version }}"
           PACK_SHA="$(python3 -c 'import json;print(json.load(open("dist/release_meta.json"))["pack_sha256"])')"
-          cat > manifest.json <<JSON
-          {
-            "version": "$VERSION",
-            "url": "https://github.com/$GITHUB_REPOSITORY/releases/download/$VERSION/assets.pck",
-            "sha256": "$PACK_SHA"
-          }
-          JSON
+          # Le bloc `voices` s'AJOUTE, la racine continuant de décrire le pack principal : un APK
+          # antérieur à v0.1.37 lit donc un manifeste qui a toujours le sens qu'il attend. Il ne
+          # connaîtra pas les voix — dialogues muets jusqu'à sa mise à jour — mais il démarre.
+          VOICES_SHA="$(python3 -c 'import json;print(json.load(open("dist/release_meta.json")).get("voices_sha256") or "")')"
+          LITE_SHA="$(python3 -c 'import json;print(json.load(open("dist/release_meta.json")).get("lite_sha256") or "")')"
+          BASE="https://github.com/$GITHUB_REPOSITORY/releases/download/$VERSION"
+          # LA RACINE DÉCRIT LE PACK COMPLET, et c'est le choix qui garantit zéro régression : un APK
+          # antérieur à v0.1.37 ne connaît que `url`/`sha256` et continue donc de télécharger
+          # exactement ce qu'il téléchargeait, voix incluses. Les blocs `lite` et `voices` ne sont lus
+          # que par les APK récents, qui prennent 75 Mo au démarrage et les voix à la demande.
+          # Python SUR UNE SEULE LIGNE, et ce n'est pas un caprice de style : un heredoc indenté dans
+          # un `run:` de workflow conserve son indentation, et Python répond IndentationError — vérifié.
+          # Cette forme est insensible à l'indentation. Les blocs `lite` et `voices` ne sont écrits que
+          # si leur empreinte existe, si bien qu'une publication sans eux reste un manifeste valide.
+          python3 -c 'import json,sys; b=sys.argv[2]; m={"version":sys.argv[1],"url":b+"/assets.pck","sha256":sys.argv[3]}; m.update({"lite":{"url":b+"/assets-lite.pck","sha256":sys.argv[4]}} if sys.argv[4] else {}); m.update({"voices":{"url":b+"/voices.pck","sha256":sys.argv[5]}} if sys.argv[5] else {}); print(json.dumps(m,indent=2))' \
+            "$VERSION" "$BASE" "$PACK_SHA" "$LITE_SHA" "$VOICES_SHA" > manifest.json
           cat manifest.json
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
