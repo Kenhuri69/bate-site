@@ -56,6 +56,20 @@ jobs:
     name: Publier ${{ inputs.version }}
     runs-on: ubuntu-latest
     steps:
+      # LES ENTRÉES SONT VALIDÉES AVANT TOUT : les étapes suivantes interpolent
+      # `${{ inputs.version }}` et `${{ inputs.staging_branch }}` dans du shell, sur un dépôt
+      # PUBLIC en `contents: write` + `actions: write`. Une valeur hors motif arrête le job ici,
+      # avant qu'aucune ne soit exécutée (revue 2026-09-23, F10).
+      - name: Valider les entrées
+        env:
+          VERSION_INPUT: ${{ inputs.version }}
+          STAGING_INPUT: ${{ inputs.staging_branch }}
+        run: |
+          [[ "$VERSION_INPUT" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] \
+            || { echo "::error::version refusée : $VERSION_INPUT"; exit 1; }
+          [[ "$STAGING_INPUT" =~ ^[A-Za-z0-9._/-]+$ ]] \
+            || { echo "::error::branche refusée : $STAGING_INPUT"; exit 1; }
+
       - name: Checkout de la vitrine (main, porte manifest.json)
         uses: actions/checkout@v4
 
