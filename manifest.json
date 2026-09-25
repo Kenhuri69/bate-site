@@ -1,13 +1,13 @@
 {
-  "version": "v0.4.6",
-  "url": "https://github.com/Kenhuri69/bate-site/releases/download/v0.4.6/assets.pck",
-  "sha256": "3369bf465f1aa5ae7f5f18229d52cc563e7ce93f11fa3666f26c0cad1af275e3",
+  "version": "v0.4.7",
+  "url": "https://github.com/Kenhuri69/bate-site/releases/download/v0.4.7/assets.pck",
+  "sha256": "99a35448c35c794707436d1b1afb30fe6790c340c7f629859e9acd961c360688",
   "lite": {
-    "url": "https://github.com/Kenhuri69/bate-site/releases/download/v0.4.6/assets-lite.pck",
-    "sha256": "bfeab74104d061110a674d420b4b74753618726ab43b590725d492668d591d58"
+    "url": "https://github.com/Kenhuri69/bate-site/releases/download/v0.4.7/assets-lite.pck",
+    "sha256": "6b3893b96fc6beaa211cb15c331bbf80797c618d9abf5059a3cef3459f541cee"
   },
   "voices": {
-    "url": "https://github.com/Kenhuri69/bate-site/releases/download/v0.4.6/voices.pck",
-    "sha256": "6b1a36b78765566c0d2c686533a1c5714535b130c9a114a071c97b0fa1369706"
+    "url": "https://github.com/Kenhuri69/bate-site/releases/download/v0.4.7/voices.pck",
+    "sha256": "c7e3d2cc7445969eb876ebf40d056498b4c664c02a0c0819e044510864f38b0e"
   }
 }
