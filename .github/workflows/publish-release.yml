@@ -154,6 +154,9 @@ jobs:
           # connaîtra pas les voix — dialogues muets jusqu'à sa mise à jour — mais il démarre.
           VOICES_SHA="$(python3 -c 'import json;print(json.load(open("dist/release_meta.json")).get("voices_sha256") or "")')"
           LITE_SHA="$(python3 -c 'import json;print(json.load(open("dist/release_meta.json")).get("lite_sha256") or "")')"
+          # Voix inchangées : `publish-release.sh` n'en pousse pas les tranches et donne l'URL déjà
+          # publiée dans `voices_url`. Vide = voix neuves, attachées à cette Release.
+          VOICES_URL="$(python3 -c 'import json;print(json.load(open("dist/release_meta.json")).get("voices_url") or "")')"
           BASE="https://github.com/$GITHUB_REPOSITORY/releases/download/$VERSION"
           # LA RACINE DÉCRIT LE PACK COMPLET, et c'est le choix qui garantit zéro régression : un APK
           # antérieur à v0.1.37 ne connaît que `url`/`sha256` et continue donc de télécharger
@@ -163,8 +166,8 @@ jobs:
           # un `run:` de workflow conserve son indentation, et Python répond IndentationError — vérifié.
           # Cette forme est insensible à l'indentation. Les blocs `lite` et `voices` ne sont écrits que
           # si leur empreinte existe, si bien qu'une publication sans eux reste un manifeste valide.
-          python3 -c 'import json,sys; b=sys.argv[2]; m={"version":sys.argv[1],"url":b+"/assets.pck","sha256":sys.argv[3]}; m.update({"lite":{"url":b+"/assets-lite.pck","sha256":sys.argv[4]}} if sys.argv[4] else {}); m.update({"voices":{"url":b+"/voices.pck","sha256":sys.argv[5]}} if sys.argv[5] else {}); print(json.dumps(m,indent=2))' \
-            "$VERSION" "$BASE" "$PACK_SHA" "$LITE_SHA" "$VOICES_SHA" > manifest.json
+          python3 -c 'import json,sys; b=sys.argv[2]; m={"version":sys.argv[1],"url":b+"/assets.pck","sha256":sys.argv[3]}; m.update({"lite":{"url":b+"/assets-lite.pck","sha256":sys.argv[4]}} if sys.argv[4] else {}); m.update({"voices":{"url":sys.argv[6] or b+"/voices.pck","sha256":sys.argv[5]}} if sys.argv[5] else {}); print(json.dumps(m,indent=2))' \
+            "$VERSION" "$BASE" "$PACK_SHA" "$LITE_SHA" "$VOICES_SHA" "$VOICES_URL" > manifest.json
           cat manifest.json
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
